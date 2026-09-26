@@ -24,7 +24,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
 
   container-check:
     name: Build container

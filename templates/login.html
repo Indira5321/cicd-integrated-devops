@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a23">
+  <title>Sign in | Relay Ops</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+</head>
+<body>
+  <main class="auth-layout">
+    <section class="auth-visual" aria-label="Relay Ops deployment overview">
+      <a class="auth-brand" href="/" aria-label="Relay Ops"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>relay<span>ops</span></span></a>
+      <div class="visual-copy"><span class="visual-kicker">RELEASE ENGINEERING / 01</span><h1>Ship with<br>confidence.</h1><p>One clear view from verified commit to healthy service.</p></div>
+      <div class="mini-flow" aria-label="Pipeline stages">
+        <div class="mini-flow-head"><span>DEPLOYMENT PIPELINE</span><span class="mini-live"><i></i> READY</span></div>
+        <div class="mini-flow-step"><span class="mini-step-check">✓</span><span>Tests pass</span><code>pytest</code></div>
+        <div class="mini-flow-step"><span class="mini-step-check">✓</span><span>Image published</span><code>ghcr.io</code></div>
+        <div class="mini-flow-step"><span class="mini-step-check">✓</span><span>Service monitored</span><code>metrics</code></div>
+      </div>
+      <div class="visual-bottom"><span>DOCKER</span><i></i><span>TERRAFORM</span><i></i><span>PROMETHEUS</span></div>
+    </section>
+    <section class="auth-main">
+      <div class="auth-topline"><span>CONTROL ROOM</span><span><i></i> PRIVATE WORKSPACE</span></div>
+      <div class="auth-form-wrap">
+        <div class="auth-emblem" aria-hidden="true"><span class="brand-mark"><span></span><span></span><span></span></span></div>
+        <div class="form-kicker">WELCOME BACK</div>
+        <h2>Sign in to Relay Ops</h2>
+        <p class="form-intro">Use your workspace credentials to continue.</p>
+        {% if setup_required %}
+          <div class="auth-alert setup-alert" role="alert"><strong>Login is not configured</strong><span>Copy <code>.env.example</code> to <code>.env</code>, set the app credentials, then restart the app.</span></div>
+        {% else %}
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}<div class="auth-alert" role="alert">{{ messages[0] }}</div>{% endif %}
+          {% endwith %}
+          <form class="auth-form" method="post" autocomplete="on">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="username">Username</label>
+            <div class="input-wrap"><span class="field-symbol" aria-hidden="true">ID</span><input id="username" name="username" type="text" autocomplete="username" placeholder="Workspace username" required autofocus></div>
+            <div class="password-label"><label for="password">Password</label><span>Configured by your administrator</span></div>
+            <div class="input-wrap"><span class="field-symbol lock-symbol" aria-hidden="true">●</span><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required></div>
+            <button class="sign-in-button" type="submit">Sign in <span aria-hidden="true">→</span></button>
+          </form>
+          <div class="auth-note"><span class="secure-icon" aria-hidden="true">✓</span><span>Protected session · signs out after 8 hours</span></div>
+        {% endif %}
+      </div>
+      <footer class="auth-footer"><span>RELAY OPS <i>/</i> DEVOPS CONTROL PLANE</span><span>AUTHENTICATED ACCESS</span></footer>
+    </section>
+  </main>
+</body>
+</html>

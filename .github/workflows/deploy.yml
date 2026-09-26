@@ -1,0 +1,153 @@
+name: test-build-deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q
+
+  container-check:
+    name: Build container
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: relay-ops:ci
+
+  terraform-check:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Check formatting
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+      - name: Initialize providers
+        working-directory: terraform
+        run: terraform init -backend=false
+      - name: Validate configuration
+        working-directory: terraform
+        run: terraform validate
+
+  publish:
+    name: Build and publish image
+    needs: [test, container-check, terraform-check]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Prepare image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: publish
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out deployment configuration
+        uses: actions/checkout@v4
+      - name: Copy Compose and monitoring configuration
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ec2-user
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.yml,monitoring/"
+          target: "/opt/relay-ops"
+          overwrite: true
+      - name: Pull, restart, and verify service
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_USER: ${{ secrets.GHCR_USERNAME }}
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          DEPLOY_SHA: ${{ github.sha }}
+          APP_USERNAME: ${{ secrets.APP_USERNAME }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ec2-user
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: GHCR_READ_TOKEN,GHCR_USER,IMAGE_NAME,IMAGE_TAG,DEPLOY_SHA,APP_USERNAME,APP_PASSWORD,APP_SECRET_KEY,GRAFANA_ADMIN_PASSWORD
+          script: |
+            set -eu
+            cd /opt/relay-ops
+            echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export APP_IMAGE="$IMAGE_NAME:$IMAGE_TAG"
+            export DEPLOYED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            export COOKIE_SECURE="false"
+            docker-compose pull app
+            docker-compose up -d --remove-orphans
+            docker image prune -f
+            for attempt in $(seq 1 20); do
+              if curl -fsS http://127.0.0.1:8080/api/health; then
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "Health check failed after deployment" >&2
+            exit 1

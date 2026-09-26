@@ -1,0 +1,73 @@
+services:
+  app:
+    image: ${APP_IMAGE:-relay-ops:local}
+    build: .
+    container_name: relay-ops-app
+    restart: unless-stopped
+    environment:
+      DATABASE_PATH: /data/tasks.sqlite
+      DEPLOY_SHA: ${DEPLOY_SHA:-local}
+      DEPLOYED_AT: ${DEPLOYED_AT:-local}
+      APP_USERNAME: "${APP_USERNAME:?Set APP_USERNAME in .env}"
+      APP_PASSWORD: "${APP_PASSWORD:?Set APP_PASSWORD in .env}"
+      APP_SECRET_KEY: "${APP_SECRET_KEY:?Set APP_SECRET_KEY in .env}"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - app_data:/data
+    ports:
+      - "8080:8000"
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: relay-ops-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    expose:
+      - "9090"
+    networks:
+      - observability
+    depends_on:
+      app:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: relay-ops-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD before starting}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - observability
+    depends_on:
+      - prometheus
+
+volumes:
+  app_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  observability:
+    driver: bridge

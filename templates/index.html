@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f4f0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Relay Ops | Service overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Relay Ops home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>relay<span class="brand-light">ops</span></span>
+      </a>
+      <div class="workspace-label">WORKSPACE</div>
+      <div class="workspace-switcher"><span class="workspace-icon">R</span><span>Release engineering</span><span class="chevron">⌄</span></div>
+      <div class="nav-label">OPERATIONS</div>
+      <nav class="nav-list">
+        <button class="nav-item is-active" data-view="overview" aria-current="page"><span class="nav-icon grid-icon" aria-hidden="true"></span>Overview</button>
+        <button class="nav-item" data-view="deployments"><span class="nav-icon deploy-icon" aria-hidden="true"></span>Deployments<span class="nav-count">1</span></button>
+        <button class="nav-item" data-view="monitoring"><span class="nav-icon pulse-icon" aria-hidden="true"></span>Monitoring</button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon task-icon" aria-hidden="true"></span>Task API</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="pipeline-card">
+          <div class="pipeline-card-top"><span class="pipeline-orb"></span><span>PIPELINE</span><span class="live-pill">LIVE</span></div>
+          <strong>All systems operational</strong>
+          <span class="pipeline-caption">Last checked <time id="sidebar-checked">just now</time></span>
+          <div class="pipeline-meter"><span></span></div>
+        </div>
+        <a class="github-link" href="https://github.com" target="_blank" rel="noreferrer"><span class="github-mark" aria-hidden="true">GH</span>Repository <span class="external-arrow">↗</span></a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Platform</span><span class="breadcrumb-slash">/</span><strong>Control room</strong></div>
+        <div class="topbar-right"><span class="environment"><span></span>PRODUCTION</span><span class="topbar-divider"></span><span class="clock" id="clock">--:--:-- UTC</span><span class="signed-in-user"><span class="user-avatar">{{ current_user[:2]|upper }}</span><span class="user-name">{{ current_user }}</span></span><form class="logout-form" action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="logout-button" type="submit" title="Sign out of Relay Ops"><span aria-hidden="true">↗</span><span>Sign out</span></button></form></div>
+      </header>
+
+      <section class="view-panel is-visible" data-panel="overview">
+        <div class="page-heading">
+          <div><div class="eyebrow">SERVICE CONTROL ROOM <span class="eyebrow-line"></span></div><h1>Service overview</h1><p class="page-subtitle">Your release pipeline, runtime health, and service activity in one place.</p></div>
+          <div class="heading-actions"><a class="button button-quiet" href="/metrics" target="_blank" rel="noreferrer"><span class="tiny-bars" aria-hidden="true">▥</span> Metrics endpoint</a><button class="button button-primary" id="refresh-button"><span class="refresh-icon" aria-hidden="true">↻</span> Refresh data</button></div>
+        </div>
+
+        <section class="service-banner" aria-label="Service health">
+          <div class="service-badge"><span class="health-ring"><span></span></span><div><div class="service-status-label">SERVICE STATUS</div><strong id="service-status">Checking health</strong></div></div>
+          <div class="service-meta"><span class="service-meta-label">APP</span><span class="mono">task-api</span><span class="meta-divider"></span><span class="service-meta-label">REGION</span><span class="mono">us-east-1</span><span class="meta-divider"></span><span class="service-meta-label">UPTIME</span><span class="mono" id="uptime">--</span></div>
+          <div class="release-chip"><span class="release-dot"></span><span>RUNNING</span><span class="release-divider"></span><span class="mono" id="release-sha">local</span></div>
+        </section>
+
+        <section class="metrics-grid" aria-label="Live service metrics">
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">REQUESTS / MIN</span><span class="metric-icon request-icon" aria-hidden="true">↗</span></div><div class="metric-value" id="requests-value">--</div><div class="metric-foot"><span class="metric-indicator green"></span><span>Rolling 60-second window</span></div><div class="metric-spark spark-green" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">P95 LATENCY</span><span class="metric-icon latency-icon" aria-hidden="true">◷</span></div><div class="metric-value"><span id="latency-value">--</span><small>ms</small></div><div class="metric-foot"><span class="metric-indicator blue"></span><span>Measured at the app</span></div><div class="metric-spark spark-blue" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">ERROR RATE</span><span class="metric-icon error-icon" aria-hidden="true">!</span></div><div class="metric-value"><span id="error-value">--</span><small>%</small></div><div class="metric-foot"><span class="metric-indicator green" id="error-indicator"></span><span id="error-caption">5xx responses · rolling 60s</span></div><div class="metric-spark spark-coral" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card deploy-metric"><div class="metric-top"><span class="metric-label">LAST DEPLOY</span><span class="metric-icon deploy-metric-icon" aria-hidden="true">⇧</span></div><div class="metric-value deploy-time" id="deploy-time">This session</div><div class="metric-foot"><span class="metric-indicator green"></span><span>via GitHub Actions</span></div><div class="deploy-commit"><span class="commit-branch">⑂</span><span class="mono" id="deploy-commit">local build</span></div></article>
+        </section>
+
+        <div class="content-grid">
+          <section class="panel traffic-panel" id="traffic-panel">
+            <div class="panel-heading"><div><div class="panel-kicker">TRAFFIC</div><h2>Request volume</h2></div><span class="live-label"><span></span> LIVE</span></div>
+            <div class="chart-summary"><strong id="chart-current">0</strong><span>requests in the last minute</span><span class="chart-period">60 SEC</span></div>
+            <div class="traffic-chart" id="traffic-chart" role="img" aria-label="Request volume sampled over time"><div class="chart-grid"><span>30</span><span>20</span><span>10</span><span>0</span></div><div class="chart-bars" id="traffic-bars"></div></div>
+            <div class="chart-axis"><span>60 seconds ago</span><span>Now</span></div>
+          </section>
+
+          <section class="panel pipeline-panel">
+            <div class="panel-heading"><div><div class="panel-kicker">DELIVERY</div><h2>Release pipeline</h2></div><button class="text-button" data-go="deployments">View details <span>→</span></button></div>
+            <div class="pipeline-flow">
+              <div class="flow-step"><span class="flow-check">✓</span><div><strong>Source verified</strong><small>Tests passing</small></div><span class="flow-time">CI</span></div>
+              <div class="flow-connector"></div>
+              <div class="flow-step"><span class="flow-check">✓</span><div><strong>Image published</strong><small>GHCR · commit tagged</small></div><span class="flow-time">BUILD</span></div>
+              <div class="flow-connector"></div>
+              <div class="flow-step"><span class="flow-check">✓</span><div><strong>Runtime healthy</strong><small>Container responding</small></div><span class="flow-time">DEPLOY</span></div>
+            </div>
+            <div class="pipeline-footer"><span class="pipeline-footer-dot"></span>Continuous delivery enabled<span class="mono">main → production</span></div>
+          </section>
+        </div>
+
+        <section class="panel task-panel">
+          <div class="panel-heading task-heading"><div><div class="panel-kicker">API SAMPLE</div><h2>Task service <span class="api-tag">REST</span></h2><p class="panel-description">A persistent, monitored API running behind this pipeline.</p></div><button class="text-button" data-go="tasks">Open task manager <span>→</span></button></div>
+          <div class="task-preview"><div class="task-summary"><span class="task-summary-count" id="task-open-count">0</span><span>open tasks</span><span class="task-summary-divider"></span><span id="task-done-count">0 completed</span></div><div class="task-list compact-list" id="overview-tasks"></div><button class="add-task-inline" data-go="tasks"><span>+</span> Add a task</button></div>
+        </section>
+        <footer class="page-footer"><span>RELAY OPS <span class="footer-separator">/</span> DEVOPS REFERENCE PROJECT</span><span>Prometheus <span class="footer-dot">·</span> Grafana <span class="footer-dot">·</span> Terraform</span></footer>
+      </section>
+
+      <section class="view-panel" data-panel="deployments" hidden>
+        <div class="page-heading"><div><div class="eyebrow">DELIVERY HISTORY <span class="eyebrow-line"></span></div><h1>Deployments</h1><p class="page-subtitle">Immutable images move from a passing test suite to the production VM.</p></div><a class="button button-quiet" href="https://github.com" target="_blank" rel="noreferrer">Open workflow <span class="external-arrow">↗</span></a></div>
+        <section class="panel release-panel"><div class="panel-heading"><div><div class="panel-kicker">CURRENT RELEASE</div><h2>Production runtime</h2></div><span class="status-pill"><span></span> HEALTHY</span></div><div class="release-detail"><div class="release-detail-icon">↗</div><div><span class="release-detail-label">IMAGE TAG</span><strong class="mono" id="deployment-image">local</strong></div><div><span class="release-detail-label">COMMIT</span><strong class="mono" id="deployment-sha">local</strong></div><div><span class="release-detail-label">TRIGGER</span><strong>Push to main</strong></div></div><div class="release-track"><div class="release-track-step done"><span>✓</span><strong>Tests</strong><small>pytest</small></div><div class="release-track-line done"></div><div class="release-track-step done"><span>✓</span><strong>Build</strong><small>GHCR</small></div><div class="release-track-line done"></div><div class="release-track-step done"><span>✓</span><strong>Deploy</strong><small>SSH · Docker Compose</small></div><div class="release-track-line done"></div><div class="release-track-step current"><span>●</span><strong>Healthy</strong><small>HTTP probe</small></div></div></section>
+        <section class="panel config-panel"><div class="panel-heading"><div><div class="panel-kicker">AUTOMATION</div><h2>Release sequence</h2></div><span class="mono muted-code">.github/workflows/deploy.yml</span></div><div class="sequence-list"><div><span class="sequence-number">01</span><span class="sequence-title">Run the test suite</span><code>pytest -q</code><span class="sequence-state">REQUIRED</span></div><div><span class="sequence-number">02</span><span class="sequence-title">Build and publish image</span><code>ghcr.io/owner/repo:&lt;sha&gt;</code><span class="sequence-state">IMMUTABLE TAG</span></div><div><span class="sequence-number">03</span><span class="sequence-title">Restart the production stack</span><code>docker-compose pull && up -d</code><span class="sequence-state">SSH DEPLOY</span></div><div><span class="sequence-number">04</span><span class="sequence-title">Scrape and verify metrics</span><code>/metrics · /api/health</code><span class="sequence-state">CONTINUOUS</span></div></div></section>
+      </section>
+
+      <section class="view-panel" data-panel="monitoring" hidden>
+        <div class="page-heading"><div><div class="eyebrow">OBSERVABILITY <span class="eyebrow-line"></span></div><h1>Monitoring</h1><p class="page-subtitle">Application instrumentation feeds Prometheus; Grafana turns it into a service view.</p></div><a class="button button-primary" id="grafana-link" href="http://localhost:3000" target="_blank" rel="noreferrer">Open Grafana <span class="external-arrow">↗</span></a></div>
+        <section class="metrics-grid monitoring-metrics"><article class="metric-card"><div class="metric-top"><span class="metric-label">REQUESTS / MIN</span><span class="metric-icon request-icon">↗</span></div><div class="metric-value" id="monitor-requests">--</div><div class="metric-foot">Rolling 60-second window</div></article><article class="metric-card"><div class="metric-top"><span class="metric-label">P95 LATENCY</span><span class="metric-icon latency-icon">◷</span></div><div class="metric-value"><span id="monitor-latency">--</span><small>ms</small></div><div class="metric-foot">Application request duration</div></article><article class="metric-card"><div class="metric-top"><span class="metric-label">ERROR RATE</span><span class="metric-icon error-icon">!</span></div><div class="metric-value"><span id="monitor-error">--</span><small>%</small></div><div class="metric-foot">HTTP 5xx · rolling 60s</div></article></section>
+        <section class="panel monitor-chart-panel"><div class="panel-heading"><div><div class="panel-kicker">LIVE TELEMETRY</div><h2>Request activity</h2></div><span class="live-label"><span></span> REFRESHES EVERY 10 SEC</span></div><div class="monitor-chart" id="monitor-chart"></div><div class="chart-axis"><span>Recent samples</span><span>Now</span></div></section>
+        <section class="panel metric-reference"><div class="panel-heading"><div><div class="panel-kicker">EXPORTED SERIES</div><h2>Prometheus metrics</h2></div><a class="text-button" href="/metrics" target="_blank" rel="noreferrer">View raw scrape <span>↗</span></a></div><div class="series-list"><div><code>app_http_requests_total</code><span>Request volume by method, endpoint, and status</span></div><div><code>app_http_request_duration_seconds</code><span>Latency histogram for percentile queries</span></div><div><code>app_task_actions_total</code><span>Task lifecycle actions by type</span></div></div></section>
+      </section>
+
+      <section class="view-panel" data-panel="tasks" hidden>
+        <div class="page-heading"><div><div class="eyebrow">SERVICE API <span class="eyebrow-line"></span></div><h1>Task service</h1><p class="page-subtitle">A small persistent workload to exercise builds, deployments, and monitoring.</p></div><span class="api-health"><span></span> API OPERATIONAL</span></div>
+        <section class="task-workspace"><div class="task-workspace-head"><div><span class="panel-kicker">TASKS</span><div class="task-workspace-count"><strong id="all-task-count">0</strong><span>items</span></div></div><div class="task-filters" role="group" aria-label="Filter tasks"><button class="filter-button is-selected" data-filter="all">All</button><button class="filter-button" data-filter="open">Open</button><button class="filter-button" data-filter="done">Completed</button></div></div><form class="new-task-form" id="task-form"><label class="visually-hidden" for="task-title">New task title</label><input id="task-title" name="title" type="text" maxlength="160" placeholder="Add a task to the service..." autocomplete="off" required><button class="button button-primary" type="submit"><span>+</span> Add task</button></form><div class="task-list full-task-list" id="all-tasks"><div class="empty-state"><span class="empty-mark">✓</span><strong>Nothing on the board</strong><span>Add a task to exercise the API.</span></div></div><div class="task-workspace-foot"><span><span class="health-dot-small"></span> Persisted in SQLite</span><span>REST API <span class="mono">/api/tasks</span></span></div></section>
+        <section class="api-endpoints"><div class="panel-heading"><div><div class="panel-kicker">HTTP INTERFACE</div><h2>Available endpoints</h2></div><span class="api-tag">JSON</span></div><div class="endpoint-list"><div><span class="method get">GET</span><code>/api/health</code><span>Container health check</span></div><div><span class="method get">GET</span><code>/api/tasks</code><span>List current tasks</span></div><div><span class="method post">POST</span><code>/api/tasks</code><span>Create a task</span></div><div><span class="method patch">PATCH</span><code>/api/tasks/:id</code><span>Update completion</span></div><div><span class="method delete">DELETE</span><code>/api/tasks/:id</code><span>Remove a task</span></div><div><span class="method get">GET</span><code>/metrics</code><span>Prometheus scrape endpoint</span></div></div></section>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

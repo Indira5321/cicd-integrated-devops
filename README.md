@@ -122,7 +122,7 @@ Cloud resources can incur charges. Check current AWS pricing and free-tier eligi
    - `GRAFANA_ADMIN_PASSWORD`: a strong Grafana admin password.
 
 4. Ensure the GitHub Actions workflow has package write permission and the GHCR package is available to the workflow. An opened Grafana URL listens only from the configured `admin_cidr`.
-5. Push to `main`. Tests, container build, and Terraform checks must pass before the image is published; deployment then pulls the immutable commit-SHA tag and probes `/api/health`. The workflow fails if the health check does not recover.
+5. Push to `main`. Tests, container build, and Terraform checks must pass before the image is published. A preflight checks the required Actions secrets without printing their values; if any are missing, EC2 deployment is skipped with the missing secret names in the job summary. Once configured, deployment pulls the immutable commit-SHA tag and probes `/api/health`; the workflow fails if the health check does not recover.
 
 Use a separate, narrowly scoped read-only package token for the VM where possible. Rotate credentials if exposed. Terraform state can contain sensitive infrastructure details; keep local state and `terraform.tfvars` private. The app currently serves HTTP directly: do not send real credentials over a public network until HTTPS is configured. Set `COOKIE_SECURE=true` after placing it behind HTTPS.
 

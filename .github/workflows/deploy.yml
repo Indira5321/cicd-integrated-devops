@@ -99,10 +99,45 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  deployment-config:
+    name: Check deployment secrets
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check required deployment secrets
+        id: check
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          APP_USERNAME: ${{ secrets.APP_USERNAME }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        shell: bash
+        run: |
+          missing=()
+          for name in DEPLOY_HOST DEPLOY_SSH_KEY GHCR_USERNAME GHCR_READ_TOKEN APP_USERNAME APP_PASSWORD APP_SECRET_KEY GRAFANA_ADMIN_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            fi
+          done
+          if ((${#missing[@]} == 0)); then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "All deployment secrets are configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Deployment skipped. Add these repository Actions secrets: ${missing[*]}" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Deployment skipped::Configure the required repository Actions secrets to enable EC2 deployment."
+          fi
+
   deploy:
     name: Deploy to EC2
-    needs: publish
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [publish, deployment-config]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.deployment-config.outputs.configured == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out deployment configuration
